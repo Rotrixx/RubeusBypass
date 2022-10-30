@@ -83,16 +83,18 @@ namespace Rubeus
                     string samAccountName = (string)user["samaccountname"];
                     string distinguishedName = (string)user["distinguishedname"];
 
-                    // check if entry is user object
-                    if ((int)user["useraccountcontrol"] & 512 == 512){
+                    // check if entry is user object and not disabled
+                    int normalUser = (int)user["useraccountcontrol"] & 512;
+                    int disabledUser = (int)user["useraccountcontrol"] & 2;
+                    if ( normalUser != 512 || disabledUser == 2){
                         continue;
                     }
 
 					// get UserAccountControl as int
-					int uac = (int)user["useraccountcontrol"];
+					int uac = (int)user["useraccountcontrol"] & 4194304;
 
 					// check if UserAccountControl has DontReqPreAuth flag set if yes: request hash else: continue
-                    if (uac & 4194304 == 4194304)
+                    if (uac == 4194304)
                     {
                         Console.WriteLine("[*] SamAccountName         : {0}", samAccountName);
                         Console.WriteLine("[*] DistinguishedName      : {0}", distinguishedName);
@@ -467,8 +469,10 @@ namespace Rubeus
                         string distinguishedName = (string)user["distinguishedname"];
                         string servicePrincipalName = "";
 
-                        // check if entry is user object
-                        if ((int)user["useraccountcontrol"] & 512 == 512){
+                        // check if entry is user object and not disabled
+                        int normalUser = (int)user["useraccountcontrol"] & 512;
+                        int disabledUser = (int)user["useraccountcontrol"] & 2;
+                        if ( normalUser != 512 || disabledUser == 2){
                             continue;
                         }
 
